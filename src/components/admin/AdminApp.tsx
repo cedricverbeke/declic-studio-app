@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react';
-import { supabase, type Session } from '@/lib/supabase';
+import { supabase, type Session, sendPiShutdownCommand } from '@/lib/supabase';
 import { PricingTab } from '@/components/admin/PricingTab';
 import { SessionsTab } from '@/components/admin/SessionsTab';
 import { DropZone } from '@/components/admin/DropZone';
 import { OrdersTab } from '@/components/admin/OrdersTab';
-import { Tag, Camera, UploadCloud, Package, Aperture } from 'lucide-react';
+import { Modal, Button } from '@/components/ui';
+import { Tag, Camera, UploadCloud, Package, Aperture, Power } from 'lucide-react';
 
 type Tab = 'sessions' | 'pricing' | 'dropzone' | 'orders';
 
 export function AdminApp() {
   const [tab, setTab] = useState<Tab>('sessions');
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [showShutdownModal, setShowShutdownModal] = useState(false);
+  const [shutdownLoading, setShutdownLoading] = useState(false);
+  const [shutdownMessage, setShutdownMessage] = useState<string | null>(null);
 
   async function loadSessions() {
     const { data } = await supabase
@@ -33,6 +37,21 @@ export function AdminApp() {
 
   const activeSession = sessions.find((s) => s.status === 'active');
 
+  async function handleShutdownConfirm() {
+    setShutdownLoading(true);
+    const success = await sendPiShutdownCommand();
+    setShutdownLoading(false);
+    if (success) {
+      setShowShutdownModal(false);
+      setShutdownMessage("Ordre d'extinction envoyé");
+      setTimeout(() => setShutdownMessage(null), 4000);
+    } else {
+      setShutdownMessage('Erreur : ordre non envoyé');
+      setTimeout(() => setShutdownMessage(null), 4000);
+      setShowShutdownModal(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0a0b]">
       {/* Header */}
@@ -47,13 +66,28 @@ export function AdminApp() {
               <p className="text-xs text-[#6b6b75] leading-tight">Studio Photo</p>
             </div>
           </div>
-          {activeSession && (
-            <div className="flex items-center gap-2 rounded-lg bg-[#34d399]/10 px-3 py-1.5 text-xs">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-[#34d399]" />
-              <span className="font-mono font-medium text-[#34d399]">{activeSession.code}</span>
-              <span className="text-[#6b6b75]">active</span>
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            {activeSession && (
+              <div className="flex items-center gap-2 rounded-lg bg-[#34d399]/10 px-3 py-1.5 text-xs">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-[#34d399]" />
+                <span className="font-mono font-medium text-[#34d399]">{activeSession.code}</span>
+                <span className="text-[#6b6b75]">active</span>
+              </div>
+            )}
+            {shutdownMessage && (
+              <span className="text-xs font-medium text-[#fbbf24] animate-fade-in">
+                {shutdownMessage}
+              </span>
+            )}
+            <button
+              onClick={() => setShowShutdownModal(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-[#f87171]/30 bg-[#f87171]/10 px-3 py-1.5 text-xs font-medium text-[#f87171] transition-smooth hover:bg-[#f87171]/20"
+              title="Éteindre le boîtier"
+            >
+              <Power className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Éteindre</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -87,6 +121,21 @@ export function AdminApp() {
         {tab === 'dropzone' && <DropZone sessions={sessions} />}
         {tab === 'orders' && <OrdersTab sessions={sessions} />}
       </main>
+
+      {/* Shutdown confirmation modal */}
+      <Modal open={showShutdownModal} onClose={() => setShowShutdownModal(false)} title="Éteindre le Boîtier ?">
+        <p className="text-sm text-[#9a9aa5] leading-relaxed">
+          Cette action va lancer l'extinction propre du Raspberry Pi. L'envoi des vignettes sera interrompu.
+        </p>
+        <div className="mt-6 flex justify-end gap-3">
+          <Button variant="ghost" onClick={() => setShowShutdownModal(false)}>
+            Annuler
+          </Button>
+          <Button variant="danger" onClick={handleShutdownConfirm} disabled={shutdownLoading}>
+            {shutdownLoading ? 'Envoi…' : 'Éteindre le Pi'}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
