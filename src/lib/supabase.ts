@@ -73,6 +73,13 @@ export function computePrice(rates: PricingRates, count: number): number {
   return billable * rates.extra_per_photo;
 }
 
+export async function sendPiShutdownCommand(): Promise<boolean> {
+  const { error } = await supabase
+    .from('pi_control')
+    .insert({ command: 'shutdown' });
+  return !error;
+}
+
 export function generateSessionCode(): string {
   const num = Math.floor(1000 + Math.random() * 9000);
   return `DS-${num}`;
