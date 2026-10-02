@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase, type Order, type Session, type Photo } from '@/lib/supabase';
 import { Button, EmptyState, StatusBadge, Modal } from '@/components/ui';
 import { statusLabel } from '@/lib/theme';
-import { Send, Package, Mail, ChevronRight, Loader2, CheckCircle2, Copy, Check, Download } from 'lucide-react';
+import { Send, Package, Mail, ChevronRight, Loader2, CheckCircle2, Copy, Check, Download, Trash2 } from 'lucide-react';
 
 type Filter = 'all' | 'awaiting_hd' | 'ready' | 'delivered';
 
@@ -16,6 +16,9 @@ export function OrdersTab({ sessions }: { sessions: Session[] }) {
   const [detailPhotos, setDetailPhotos] = useState<Photo[]>([]);
   const [copiedAll, setCopiedAll] = useState(false);
   const [downloadedAll, setDownloadedAll] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -82,6 +85,22 @@ export function OrdersTab({ sessions }: { sessions: Session[] }) {
 
   const readyCount = orders.filter((o) => o.delivery_status === 'ready').length;
 
+  async function deleteOrder(orderId: string) {
+    const { error } = await supabase.from('orders').delete().eq('id', orderId);
+    if (!error) await load();
+  }
+
+  async function deleteOrders(ordersToDelete: Order[]) {
+    setDeleting(true);
+    for (const order of ordersToDelete) {
+      await supabase.from('orders').delete().eq('id', order.id);
+    }
+    setDeleting(false);
+    setDeleteConfirm(false);
+    setOrderToDelete(null);
+    await load();
+  }
+
   const filters: { key: Filter; label: string; count: number }[] = [
     { key: 'all', label: 'Toutes', count: orders.filter((o) => o.payment_status === 'paid').length },
     { key: 'awaiting_hd', label: 'En attente HD', count: orders.filter((o) => o.payment_status === 'paid' && o.delivery_status === 'awaiting_hd').length },
@@ -96,16 +115,24 @@ export function OrdersTab({ sessions }: { sessions: Session[] }) {
           <h1 className="text-2xl font-bold">Commandes</h1>
           <p className="mt-1 text-sm text-[#9a9aa5]">Suivi et livraison des commandes clients</p>
         </div>
-        {readyCount > 0 && (
-          <Button onClick={sendBatchDelivery} disabled={sendingBatch}>
-            {sendingBatch ? (
-              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="mr-1.5 h-4 w-4" />
-            )}
-            Livrer tout ({readyCount})
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {orders.length > 0 && (
+            <Button variant="danger" onClick={() => { setOrderToDelete(null); setDeleteConfirm(true); }}>
+              <Trash2 className="mr-1.5 h-4 w-4" />
+              Nettoyer ({orders.length})
+            </Button>
+          )}
+          {readyCount > 0 && (
+            <Button onClick={sendBatchDelivery} disabled={sendingBatch}>
+              {sendingBatch ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-1.5 h-4 w-4" />
+              )}
+              Livrer tout ({readyCount})
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="mb-4 flex gap-2 overflow-x-auto">
@@ -179,6 +206,12 @@ export function OrdersTab({ sessions }: { sessions: Session[] }) {
                     <CheckCircle2 className="h-4 w-4" /> Livré
                   </span>
                 )}
+                <button
+                  onClick={() => { setOrderToDelete(order); setDeleteConfirm(true); }}
+                  className="flex items-center gap-1 rounded-lg border border-[#f87171]/30 px-2.5 py-2 text-xs font-medium text-[#f87171] transition-smooth hover:bg-[#f87171]/10"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
               </div>
             </div>
           ))}
@@ -297,6 +330,24 @@ export function OrdersTab({ sessions }: { sessions: Session[] }) {
             )}
           </div>
         )}
+      </Modal>
+
+      {/* Delete confirmation modal */}
+      <Modal open={deleteConfirm} onClose={() => { setDeleteConfirm(false); setOrderToDelete(null); }} title="Confirmer la suppression" maxWidth="max-w-md">
+        <div className="space-y-4">
+          <div className="rounded-xl border border-[#f87171]/20 bg-[#f87171]/10 px-4 py-3 text-sm text-[#f87171]">
+            {orderToDelete
+              ? 'Cette commande sera définitivement supprimée.'
+              : `Toutes les ${orders.length} commandes seront définitivement supprimées.`}
+            {' '}Cette action est irréversible.
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => { setDeleteConfirm(false); setOrderToDelete(null); }}>Annuler</Button>
+            <Button variant="danger" onClick={() => deleteOrders(orderToDelete ? [orderToDelete] : orders)} disabled={deleting}>
+              {deleting ? 'Suppression…' : orderToDelete ? 'Supprimer cette commande' : `Tout supprimer (${orders.length})`}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

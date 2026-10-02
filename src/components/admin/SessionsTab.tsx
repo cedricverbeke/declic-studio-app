@@ -18,6 +18,7 @@ export function SessionsTab() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteAllConfirm, setDeleteAllConfirm] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -143,6 +144,12 @@ export function SessionsTab() {
             <Button variant="danger" onClick={() => setDeleteConfirm(true)}>
               <Trash2 className="mr-1.5 inline h-4 w-4" />
               Supprimer ({selectedIds.size})
+            </Button>
+          )}
+          {sessions.length > 0 && (
+            <Button variant="danger" onClick={() => setDeleteAllConfirm(true)}>
+              <Trash2 className="mr-1.5 inline h-4 w-4" />
+              Tout supprimer
             </Button>
           )}
           <Button onClick={() => setCreateOpen(true)} disabled={tiers.length === 0}>
@@ -307,6 +314,35 @@ export function SessionsTab() {
             <Button variant="ghost" onClick={() => setDeleteConfirm(false)}>Annuler</Button>
             <Button variant="danger" onClick={deleteSessions} disabled={deleting}>
               {deleting ? 'Suppression…' : `Supprimer (${sessionsToDelete.length})`}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete ALL confirmation modal */}
+      <Modal open={deleteAllConfirm} onClose={() => setDeleteAllConfirm(false)} title="Supprimer toutes les sessions" maxWidth="max-w-md">
+        <div className="space-y-4">
+          <div className="rounded-xl border border-[#f87171]/20 bg-[#f87171]/10 px-4 py-3 text-sm text-[#f87171]">
+            Vous êtes sur le point de supprimer les {sessions.length} sessions, toutes leurs photos (vignettes et HD) et toutes les commandes associées. Cette action est irréversible.
+          </div>
+          <div className="max-h-40 overflow-y-auto space-y-1 rounded-lg bg-[#0a0a0b] p-3">
+            {sessions.map((s) => (
+              <div key={s.id} className="flex items-center gap-2 text-sm">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#f87171]" />
+                <span className="font-mono font-medium">{s.code}</span>
+                <span className="text-[#6b6b75]">· {s.pricing_tiers?.name || 'Aucune grille'}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setDeleteAllConfirm(false)}>Annuler</Button>
+            <Button variant="danger" onClick={async () => {
+              setSelectedIds(new Set(sessions.map((s) => s.id)));
+              setDeleteAllConfirm(false);
+              setDeleteConfirm(true);
+            }}>
+              <Trash2 className="mr-1.5 h-4 w-4" />
+              Tout supprimer ({sessions.length})
             </Button>
           </div>
         </div>
