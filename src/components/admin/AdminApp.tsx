@@ -4,8 +4,9 @@ import { PricingTab } from '@/components/admin/PricingTab';
 import { SessionsTab } from '@/components/admin/SessionsTab';
 import { DropZone } from '@/components/admin/DropZone';
 import { OrdersTab } from '@/components/admin/OrdersTab';
+import { Login, isAuthenticated, logout } from '@/components/admin/Login';
 import { Modal, Button } from '@/components/ui';
-import { Tag, Camera, UploadCloud, Package, Aperture, Power } from 'lucide-react';
+import { Tag, Camera, UploadCloud, Package, Aperture, Power, LogOut } from 'lucide-react';
 
 type Tab = 'sessions' | 'pricing' | 'dropzone' | 'orders';
 
@@ -15,6 +16,10 @@ export function AdminApp() {
   const [showShutdownModal, setShowShutdownModal] = useState(false);
   const [shutdownLoading, setShutdownLoading] = useState(false);
   const [shutdownMessage, setShutdownMessage] = useState<string | null>(null);
+
+  if (!isAuthenticated()) {
+    return <Login />;
+  }
 
   async function loadSessions() {
     const { data } = await supabase
@@ -79,6 +84,14 @@ export function AdminApp() {
                 {shutdownMessage}
               </span>
             )}
+            <button
+              onClick={() => { logout(); window.location.reload(); }}
+              className="flex items-center gap-1.5 rounded-lg border border-[#33333c] px-3 py-1.5 text-xs font-medium text-[#9a9aa5] transition-smooth hover:text-[#f5f5f7] hover:border-[#4a4a52]"
+              title="Se déconnecter"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Déconnexion</span>
+            </button>
             <button
               onClick={() => setShowShutdownModal(true)}
               className="flex items-center gap-1.5 rounded-lg border border-[#f87171]/30 bg-[#f87171]/10 px-3 py-1.5 text-xs font-medium text-[#f87171] transition-smooth hover:bg-[#f87171]/20"
